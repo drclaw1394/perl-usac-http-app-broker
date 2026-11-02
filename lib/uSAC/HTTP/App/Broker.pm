@@ -104,23 +104,26 @@ use Data::JPack;
 use Template::Plexsite;
 
 use uSAC::HTTP::App::FastPack;
-use File::ShareDir ":ALL";
 
 use File::Path qw<make_path>;
 use File::Basename qw<dirname>;
 
+use File::ShareDir ":ALL";
 my $share_dir=dist_dir "uSAC-HTTP-App-Broker";
 
 
 # Return the paths of sourse files
 sub js_paths {
-  say STDERR "GETTING JS PATHS FOR ".__PACKAGE__;
+  asay $STDERR, "GETTING JS PATHS FOR ".__PACKAGE__;
   grep !/test/, <$share_dir/js/*>;
 }
 
 # or we add the file to the dir directly
 sub add_to_jpack_container {
   my $html_container=shift;
+
+
+
   # Given the html_container encode the js and resource files into the next available position
   #
   my $jpack=Data::JPack->new(jpack_compression=>"DEFLATE", jpack_type=>"app", html_container=>$html_container);
@@ -130,11 +133,11 @@ sub add_to_jpack_container {
 
   my @outputs;
   for(js_paths){
-    say STDERR __PACKAGE__ . " adding js: ", $_;
+    asay $STDERR, __PACKAGE__ . " adding js: ", $_;
     my $out_path=$jpack->next_file_name($_);
     next unless $out_path;
 
-    say STDERR __PACKAGE__." OUTPUT PATH IS (broker app) $out_path";
+    asay $STDERR, __PACKAGE__." OUTPUT PATH IS (broker app) $out_path";
 
     $jpack->encode_file($_,$out_path);
     push @outputs, $out_path;    #
@@ -143,29 +146,35 @@ sub add_to_jpack_container {
 }
 
 sub add_to_container {
-  my (undef, $t)=@_;
+  my (undef, $t, $options)=@_;
+
+  # We don't want recusion here
+  return if $options->{__shared_count__};
 
   return unless $t isa Template::Plexsite;
+  asay $STDERR, "----CALLED add_to_container in Broker $options";
+  
+  uSAC::HTTP::App::FastPack->add_to_container($t, $options);
+  
 
-  uSAC::HTTP::App::FastPack->add_to_container($t);
+  # Add shared broker support
+  #use uSAC::HTTP::App::Broker::Shared;
+  
+  #uSAC::HTTP::App::Broker::Shared->add_to_container($t, $options);
 
   uSAC::HTTP::App::JPack->localize_table ($t, sub {
 
+    my ($t, $opts)=@_;
+    
     my @paths=(js_paths);
     for(@paths){
-      $t->add_resource($_, 
-        static=>{
-          config=>{
-            output=>{
-              filter=>{
-                name=>"jpack",
-              }
-            }
-          }
-        }
-      );
+      asay $STDERR, "--adding path for broker: $_";
+      adump $STDERR,$opts;
+
+      $t->add_resource($_,  $opts);
     }
-  }
+  },
+  $options
 );
 }
 

@@ -1,7 +1,7 @@
 @{[ init {
 
   output location=>"test", inline_only=>1;
-  inherit Data::JPack::App;
+  inherit uSAC::HTTP::App::JPack;
 
   inject uSAC::HTTP::App::Bootstrap;
   inject uSAC::HTTP::App::Broker;
